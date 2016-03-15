@@ -1,5 +1,6 @@
 # opengl_test
 OpenGL Tutorial & Some Experiments
+https://github.com/capnramses/antons_opengl_tutorials_book
 
 ### Visual Studioでのプロジェクト作成方法
 1. ./OpenGLディレクトリを適当な場所に配置し、そこに環境変数OPEN_GLを通す。

@@ -20,7 +20,45 @@
 #include <GLFW/glfw3.h> /* GLFW helper library */
 #include <stdio.h>
 
+// for logging gl
+#include <stdarg.h>
+#include <fstream>
+#include <sstream>
+#include <iostream>
+#include <string>
+#include <time.h>
+#define GL_LOG_FILE "gl.log"
+
+bool restart_gl_log()
+{
+	std::ofstream writing_file;
+	std::stringstream sstream;
+	writing_file.open(GL_LOG_FILE, std::ios::out);
+
+	if (!writing_file)
+	{
+		sstream << "Open Failed GL_LOG_FILE " << GL_LOG_FILE << std::endl;
+		writing_file << sstream.str() << std::endl;
+		writing_file.close();
+		return false;
+	}
+
+	time_t now = time(NULL);
+	struct tm localnow;
+	localtime_s(&localnow, &now);
+	sstream << "GL_LOG_FILE log. local time " 
+		<< localnow.tm_hour 
+		<< ":" << localnow.tm_min 
+		<< ":" << localnow.tm_sec 
+		<< std::endl;
+	writing_file << sstream.str() << std::endl;
+	writing_file.close();
+	return true;
+}
+
 int main () {
+	restart_gl_log();
+
 	GLFWwindow* window = NULL;
 	const GLubyte* renderer;
 	const GLubyte* version;
