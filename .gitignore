@@ -2,3 +2,5 @@
  
  # ビルド結果
  **/OpenGLTest01/Debug
+*.opensdf
+OpenGLTest01/Debug/OpenGLTest01.exe
