@@ -89,6 +89,10 @@
   <ItemGroup>
     <ClInclude Include="gl_utils.h" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="test_fs.glsl" />
+    <None Include="test_vs.glsl" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

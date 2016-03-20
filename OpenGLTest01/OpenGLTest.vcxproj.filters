@@ -27,4 +27,12 @@
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="test_vs.glsl">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="test_fs.glsl">
+      <Filter>リソース ファイル</Filter>
+    </None>
+  </ItemGroup>
 </Project>
