@@ -191,7 +191,13 @@ int main() {
 		1.0f, 0.0f, 0.0f,
 		0.0f, 1.0f, 0.0f,
 		0.0f, 0.0f, 1.0f
-	};	
+	};
+	GLfloat matrix[] = {
+		1.0f, 0.0f, 0.0f, 0.0f,
+		0.0f, 1.0f, 0.0f, 0.0f,
+		0.0f, 0.0f, 1.0f, 0.0f,
+		0.5f, 0.0f, 0.0f, 1.0f
+	};
 	int params = -1;
 
 	assert(restart_gl_log());
@@ -276,10 +282,10 @@ int main() {
 	print_all(shader_programme);
 	assert(is_valid(shader_programme));
 
-	/*colour_loc = glGetUniformLocation(shader_programme, "inputColour");
-	assert(colour_loc > -1);*/
-	//glUseProgram(shader_programme);
-	//glUniform4f(colour_loc, 1.0f, 0.0f, 0.0f, 1.0f);
+	int matrix_location = glGetUniformLocation(shader_programme, "matrix");
+	assert(matrix_location > -1);
+	glUseProgram(shader_programme);
+	glUniformMatrix4fv(matrix_location, 1, GL_FALSE, matrix);
 
 	glEnable(GL_CULL_FACE); // cull face
 	glCullFace(GL_BACK); // cull back face
