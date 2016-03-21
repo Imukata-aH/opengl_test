@@ -19,6 +19,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <string.h>
+#include <math.h>
 /* #include <stdbool.h> // for visual studio i had to comment this out and
 define pure-C bool :( */
 #define bool int
@@ -284,20 +285,34 @@ int main() {
 
 	int matrix_location = glGetUniformLocation(shader_programme, "matrix");
 	assert(matrix_location > -1);
-	glUseProgram(shader_programme);
-	glUniformMatrix4fv(matrix_location, 1, GL_FALSE, matrix);
-
+	
 	glEnable(GL_CULL_FACE); // cull face
 	glCullFace(GL_BACK); // cull back face
 	glFrontFace(GL_CW); // GL_CCW for counter clock-wise
 
+	float speed = 1.0f;
+	float last_position = 0.0f;
+	double previous_seconds = glfwGetTime();
 	while (!glfwWindowShouldClose(g_window)) {
+		double current_seconds = glfwGetTime();
+		double elapsed_seconds = current_seconds - previous_seconds;
+		previous_seconds = current_seconds;
+
 		_update_fps_counter(g_window);
+		
 		/* wipe the drawing surface clear */
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		glViewport(0, 0, g_gl_width, g_gl_height);
 
 		glUseProgram(shader_programme);
+		
+		matrix[12] = elapsed_seconds * speed + last_position;
+		last_position = matrix[12];
+		if (fabs(last_position) > 1.0)
+			speed = -speed;
+
+
+		glUniformMatrix4fv(matrix_location, 1, GL_FALSE, matrix);
 		glBindVertexArray(vao);
 		/* draw points 0-3 from the currently bound VAO with current in-use
 		shader */

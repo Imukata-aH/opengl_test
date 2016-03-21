@@ -85,9 +85,11 @@
   <ItemGroup>
     <ClCompile Include="gl_utils.c" />
     <ClCompile Include="main.c" />
+    <ClCompile Include="maths_funcs.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="gl_utils.h" />
+    <ClInclude Include="maths_funcs.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="test_fs.glsl" />
