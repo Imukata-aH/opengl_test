@@ -187,14 +187,12 @@ int main() {
 		0.5f, -0.5f, 0.0f,
 		-0.5f, -0.5f, 0.0f
 	};
-	GLuint vbo;
-	GLuint vao;
-	char vertex_shader[1024 * 256];
-	char fragment_shader[1024 * 256];
-	GLuint vs, fs, shader_programme;
-	const GLchar* p;
+	GLfloat colors[] = {
+		1.0f, 0.0f, 0.0f,
+		0.0f, 1.0f, 0.0f,
+		0.0f, 0.0f, 1.0f
+	};	
 	int params = -1;
-	GLint colour_loc;
 
 	assert(restart_gl_log());
 	assert(start_gl());
@@ -204,25 +202,36 @@ int main() {
 	glDepthFunc(GL_LESS); /* depth-testing interprets a smaller value as
 						  "closer" */
 
-
-	glGenBuffers(1, &vbo);
-	glBindBuffer(GL_ARRAY_BUFFER, vbo);
+	GLuint points_vbo;
+	glGenBuffers(1, &points_vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, points_vbo);
 	glBufferData(GL_ARRAY_BUFFER, 9 * sizeof(GLfloat), points,
 		GL_STATIC_DRAW);
 
+	GLuint colors_vbo;
+	glGenBuffers(1, &colors_vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, colors_vbo);
+	glBufferData(GL_ARRAY_BUFFER, 9 * sizeof(GLfloat), colors, GL_STATIC_DRAW);
+
+	GLuint vao;
 	glGenVertexArrays(1, &vao);
 	glBindVertexArray(vao);
-	glEnableVertexAttribArray(0);
-	glBindBuffer(GL_ARRAY_BUFFER, vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, points_vbo);
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+	glBindBuffer(GL_ARRAY_BUFFER, colors_vbo);
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+	glEnableVertexAttribArray(0);
+	glEnableVertexAttribArray(1);
 
 	/* load shaders from files here */
 
+	char vertex_shader[1024 * 256];
+	char fragment_shader[1024 * 256];
 	assert(parse_file_into_str("test_vs.glsl", vertex_shader, 1024 * 256));
 	assert(parse_file_into_str("test_fs.glsl", fragment_shader, 1024 * 256));
 
-	vs = glCreateShader(GL_VERTEX_SHADER);
-	p = (const GLchar*)vertex_shader;
+	GLuint vs = glCreateShader(GL_VERTEX_SHADER);
+	const GLchar* p = (const GLchar*)vertex_shader;
 	glShaderSource(vs, 1, &p, NULL);
 	glCompileShader(vs);
 
@@ -235,7 +244,7 @@ int main() {
 		return 1; /* or exit or something */
 	}
 
-	fs = glCreateShader(GL_FRAGMENT_SHADER);
+	GLuint fs = glCreateShader(GL_FRAGMENT_SHADER);
 	p = (const GLchar*)fragment_shader;
 	glShaderSource(fs, 1, &p, NULL);
 	glCompileShader(fs);
@@ -248,7 +257,7 @@ int main() {
 		return 1; /* or exit or something */
 	}
 
-	shader_programme = glCreateProgram();
+	GLuint shader_programme = glCreateProgram();
 	glAttachShader(shader_programme, fs);
 	glAttachShader(shader_programme, vs);
 	glLinkProgram(shader_programme);
@@ -267,10 +276,14 @@ int main() {
 	print_all(shader_programme);
 	assert(is_valid(shader_programme));
 
-	colour_loc = glGetUniformLocation(shader_programme, "inputColour");
-	assert(colour_loc > -1);
-	glUseProgram(shader_programme);
-	glUniform4f(colour_loc, 1.0f, 0.0f, 0.0f, 1.0f);
+	/*colour_loc = glGetUniformLocation(shader_programme, "inputColour");
+	assert(colour_loc > -1);*/
+	//glUseProgram(shader_programme);
+	//glUniform4f(colour_loc, 1.0f, 0.0f, 0.0f, 1.0f);
+
+	glEnable(GL_CULL_FACE); // cull face
+	glCullFace(GL_BACK); // cull back face
+	glFrontFace(GL_CW); // GL_CCW for counter clock-wise
 
 	while (!glfwWindowShouldClose(g_window)) {
 		_update_fps_counter(g_window);
