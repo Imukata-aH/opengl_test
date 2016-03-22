@@ -287,9 +287,9 @@ int main() {
 	int model_location = glGetUniformLocation(shader_programme, "model");
 	assert(model_location > -1);
 	
-	glEnable(GL_CULL_FACE); // cull face
-	glCullFace(GL_BACK); // cull back face
-	glFrontFace(GL_CW); // GL_CCW for counter clock-wise
+	//glEnable(GL_CULL_FACE); // cull face
+	//glCullFace(GL_BACK); // cull back face
+	//glFrontFace(GL_CW); // GL_CCW for counter clock-wise
 
 	float speed = 1.0f;
 	float last_position = 0.0f;
