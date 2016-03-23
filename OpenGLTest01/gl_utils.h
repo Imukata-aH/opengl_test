@@ -1,14 +1,9 @@
 #ifndef _GL_UTILS_H_
 #define _GL_UTILS_H_
 
-#include <GL/glew.h>
-#include <GLFW\/glfw3.h>
-#include <stdarg.h>
-#include <stdbool.h>
-//#include <stdbool.h> /* for visual studio i had to comment this out and define pure-C bool :( */
-#define bool int
-#define true 1
-#define false 0
+#include <stdarg.h> // used by log functions to have variable number of args
+#include <GL/glew.h> // include GLEW and new version of GL on Windows
+#include <GLFW/glfw3.h> // GLFW helper library
 
 #define GL_LOG_FILE "gl.log"
 

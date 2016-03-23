@@ -1,37 +1,139 @@
-/******************************************************************************\
-| OpenGL 4 Example Code.                                                       |
-| Accompanies written series "Anton's OpenGL 4 Tutorials"                      |
-| Email: anton at antongerdelan dot net                                        |
-| First version 27 Jan 2014                                                    |
-| Copyright Dr Anton Gerdelan, Trinity College Dublin, Ireland.                |
-| See individual libraries for separate legal notices                          |
-|******************************************************************************|
-| Shaders.                                                                     |
-| I put some utility stuff, discussed in the previous demo into a file called  |
-| gl_utils to keep this main file tidier                                       |
-| I put GLFW and GLEW start-up code into a "start_GL()" function. remember to  |
-| uncomment the version number code if on an Apple machine                     |
-\******************************************************************************/
+#include "maths_funcs.h"
 #include "gl_utils.h"
-#include <GL/glew.h> /* include GLEW and new version of GL on Windows */
-#include <GLFW/glfw3.h> /* GLFW helper library */
+#include <assimp/cimport.h> // C importer
+#include <assimp/scene.h> // collects data
+#include <assimp/postprocess.h> // various extra operations
+#include <GL/glew.h> // include GLEW and new version of GL on Windows
+#include <GLFW/glfw3.h> // GLFW helper library
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
-#include <string.h>
+#define _USE_MATH_DEFINES
 #include <math.h>
-#include "maths_funcs.h"
-/* #include <stdbool.h> // for visual studio i had to comment this out and
-define pure-C bool :( */
-#define bool int
-#define true 1
-#define false 0
+#define GL_LOG_FILE "gl.log"
+#define VERTEX_SHADER_FILE "test_vs.glsl"
+#define FRAGMENT_SHADER_FILE "test_fs.glsl"
+#define MESH_FILE "cube.dae"
 
 /* keep track of window size for things like the viewport and the mouse
 cursor */
 int g_gl_width = 640;
 int g_gl_height = 480;
 GLFWwindow* g_window = NULL;
+
+bool load_mesh(const char* file_name, GLuint* vao, int* point_count)
+{
+	const aiScene* scene = aiImportFile(file_name, aiProcess_Triangulate);
+
+	if (!scene)
+	{
+		fprintf(stderr, "ERROR, reading mesh %s\n", file_name);
+		return false;
+	}
+	printf("%i cameras\n", scene->mNumCameras);
+	printf("%i lights\n", scene->mNumLights);
+	printf("%i materials\n", scene->mNumMaterials);
+	printf("%i meshes\n", scene->mNumMeshes);
+	printf("%i textures\n", scene->mNumTextures);
+
+	const aiMesh* mesh = scene->mMeshes[0];
+	printf("%i vertices in mesh[0]\n", mesh->mNumVertices);
+
+	*point_count = mesh->mNumVertices;
+
+	glGenVertexArrays(1, vao);
+	glBindVertexArray(*vao);
+
+	GLfloat* points = NULL;
+	GLfloat* normals = NULL;
+	GLfloat* texcoords = NULL;
+
+	if (mesh->HasPositions())
+	{
+		points = (GLfloat*)malloc(*point_count * 3 * sizeof(GLfloat));
+		for (int i = 0; i < *point_count; i++)
+		{
+			const aiVector3D* vp = &(mesh->mVertices[i]);
+			points[i * 3] = (GLfloat)vp->x;
+			points[i * 3 + 1] = (GLfloat)vp->y;
+			points[i * 3 + 2] = (GLfloat)vp->z;
+		}
+	}
+	if (mesh->HasNormals()) {
+		normals = (GLfloat*)malloc(*point_count * 3 * sizeof (GLfloat));
+		for (int i = 0; i < *point_count; i++) {
+			const aiVector3D* vn = &(mesh->mNormals[i]);
+			normals[i * 3] = (GLfloat)vn->x;
+			normals[i * 3 + 1] = (GLfloat)vn->y;
+			normals[i * 3 + 2] = (GLfloat)vn->z;
+		}
+	}
+	if (mesh->HasTextureCoords(0)) {
+		texcoords = (GLfloat*)malloc(*point_count * 2 * sizeof (GLfloat));
+		for (int i = 0; i < *point_count; i++) {
+			const aiVector3D* vt = &(mesh->mTextureCoords[0][i]);
+			texcoords[i * 2] = (GLfloat)vt->x;
+			texcoords[i * 2 + 1] = (GLfloat)vt->y;
+		}
+	}
+
+	if (mesh->HasPositions())
+	{
+		GLuint vbo;
+		glGenBuffers(1, &vbo);
+		glBindBuffer(GL_ARRAY_BUFFER, vbo);
+		glBufferData
+			(
+			GL_ARRAY_BUFFER,
+			3 * (*point_count) * sizeof(GLfloat),
+			points,
+			GL_STATIC_DRAW
+			);
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+		glEnableVertexAttribArray(0);
+		free(points);
+	}
+	if (mesh->HasNormals())
+	{
+		GLuint vbo;
+		glGenBuffers(1, &vbo);
+		glBindBuffer(GL_ARRAY_BUFFER, vbo);
+		glBufferData
+			(
+			GL_ARRAY_BUFFER,
+			3 * (*point_count) * sizeof(GLfloat),
+			normals,
+			GL_STATIC_DRAW
+			);
+		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+		glEnableVertexAttribArray(1);
+		free(normals);
+	}
+	if (mesh->HasTextureCoords(0))
+	{
+		GLuint vbo;
+		glGenBuffers(1, &vbo);
+		glBindBuffer(GL_ARRAY_BUFFER, vbo);
+		glBufferData
+			(
+			GL_ARRAY_BUFFER,
+			2 * (*point_count) * sizeof(GLfloat),
+			texcoords,
+			GL_STATIC_DRAW
+			);
+		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 0, NULL);
+		glEnableVertexAttribArray(2);
+		free(texcoords);
+	}
+	if (mesh->HasTangentsAndBitangents())
+	{
+	}
+
+	aiReleaseImport(scene);
+	printf("mesh loaded\n");
+
+	return true;
+}
 
 const char* GL_type_to_string(GLenum type) {
 	switch (type) {
@@ -210,7 +312,7 @@ int main() {
 	glDepthFunc(GL_LESS); /* depth-testing interprets a smaller value as
 						  "closer" */
 
-	GLuint points_vbo;
+	/*GLuint points_vbo;
 	glGenBuffers(1, &points_vbo);
 	glBindBuffer(GL_ARRAY_BUFFER, points_vbo);
 	glBufferData(GL_ARRAY_BUFFER, 9 * sizeof(GLfloat), points,
@@ -229,7 +331,11 @@ int main() {
 	glBindBuffer(GL_ARRAY_BUFFER, colors_vbo);
 	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, NULL);
 	glEnableVertexAttribArray(0);
-	glEnableVertexAttribArray(1);
+	glEnableVertexAttribArray(1);*/
+
+	GLuint cube_vao;
+	int cube_point_count;
+	assert(load_mesh(MESH_FILE, &cube_vao, &cube_point_count));
 
 	/* load shaders from files here */
 
@@ -287,9 +393,9 @@ int main() {
 	int model_location = glGetUniformLocation(shader_programme, "model");
 	assert(model_location > -1);
 	
-	//glEnable(GL_CULL_FACE); // cull face
-	//glCullFace(GL_BACK); // cull back face
-	//glFrontFace(GL_CW); // GL_CCW for counter clock-wise
+	glEnable(GL_CULL_FACE); // cull face
+	glCullFace(GL_BACK); // cull back face
+	glFrontFace(GL_CCW); // GL_CCW for counter clock-wise
 
 	float speed = 1.0f;
 	float last_position = 0.0f;
@@ -348,10 +454,10 @@ int main() {
 
 
 		glUniformMatrix4fv(model_location, 1, GL_FALSE, matrix);
-		glBindVertexArray(vao);
+		glBindVertexArray(cube_vao);
 		/* draw points 0-3 from the currently bound VAO with current in-use
 		shader */
-		glDrawArrays(GL_TRIANGLES, 0, 3);
+		glDrawArrays(GL_TRIANGLES, 0, cube_point_count);
 		/* update other events like input handling */
 		glfwPollEvents();
 
