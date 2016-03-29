@@ -40,5 +40,11 @@
     <None Include="test_fs.glsl">
       <Filter>リソース ファイル</Filter>
     </None>
+    <None Include="bones_fs.glsl">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="bones_vs.glsl">
+      <Filter>リソース ファイル</Filter>
+    </None>
   </ItemGroup>
 </Project>

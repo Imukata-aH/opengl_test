@@ -92,6 +92,8 @@
     <ClInclude Include="maths_funcs.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="bones_fs.glsl" />
+    <None Include="bones_vs.glsl" />
     <None Include="test_fs.glsl" />
     <None Include="test_vs.glsl" />
   </ItemGroup>

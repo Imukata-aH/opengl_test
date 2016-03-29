@@ -1,4 +1,5 @@
 #include "gl_utils.h"
+#include "maths_funcs.h"
 #include <assimp/cimport.h> // C importer
 #include <assimp/scene.h> // collects data
 #include <assimp/postprocess.h> // various extra operations
@@ -443,7 +444,22 @@ GLuint create_programme_from_files(const char* vs_filename, const char* fs_filen
 }
 
 /*--------------------3D Object File Importer---------------------------*/
-bool load_mesh(const char* file_name, GLuint* vao, int* point_count)
+mat4 convert_assimp_matrix(aiMatrix4x4 m)
+{
+	return mat4(
+		1.0f, 0.0f, 0.0f, 0.0f,
+		0.0f, 1.0f, 0.0f, 0.0f,
+		0.0f, 0.0f, 1.0f, 0.0f,
+		m.a4, m.b4, m.c4, m.d4);
+}
+
+
+bool load_mesh(
+	const char* file_name,
+	GLuint* vao,
+	int* point_count,
+	mat4* bone_offset_mats,
+	int* bone_count)
 {
 	const aiScene* scene = aiImportFile(file_name, aiProcess_Triangulate);
 
@@ -496,6 +512,19 @@ bool load_mesh(const char* file_name, GLuint* vao, int* point_count)
 			const aiVector3D* vt = &(mesh->mTextureCoords[0][i]);
 			texcoords[i * 2] = (GLfloat)vt->x;
 			texcoords[i * 2 + 1] = (GLfloat)vt->y;
+		}
+	}
+	if (mesh->HasBones())
+	{
+		*bone_count = (int)mesh->mNumBones;
+		// bone names. max 256 bones, maax name length 64.
+		char bonenames[256][64];
+		for (int b_i = 0; b_i < *bone_count; b_i++)
+		{
+			const aiBone* bone = mesh->mBones[b_i];
+			strcpy(bonenames[b_i], bone->mName.data);
+			printf("bonenames[%i] = %s\n", b_i, bonenames[b_i]);
+			bone_offset_mats[b_i] = convert_assimp_matrix(bone->mOffsetMatrix);
 		}
 	}
 

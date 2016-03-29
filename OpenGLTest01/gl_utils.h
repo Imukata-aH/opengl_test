@@ -11,6 +11,8 @@ extern int g_gl_width;
 extern int g_gl_height;
 extern GLFWwindow* g_window;
 
+struct mat4;
+
 /*--------------------GL Information Logger---------------------------*/
 bool start_gl();
 bool restart_gl_log();
@@ -35,6 +37,11 @@ bool is_programme_valid(GLuint sp);
 GLuint create_programme_from_files(const char* vs_filename, const char* fs_filename);
 
 /*--------------------3D Object File Importer---------------------------*/
-bool load_mesh(const char* file_name, GLuint* vao, int* point_count);
+bool load_mesh(
+	const char* file_name, 
+	GLuint* vao, 
+	int* point_count,
+	mat4* bone_offset_mats,
+	int* bone_count);
 
 #endif

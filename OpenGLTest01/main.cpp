@@ -9,7 +9,8 @@
 #define GL_LOG_FILE "gl.log"
 #define VERTEX_SHADER_FILE "test_vs.glsl"
 #define FRAGMENT_SHADER_FILE "test_fs.glsl"
-#define MESH_FILE "suzanne.dae"
+#define MAX_BONES 32
+#define MESH_FILE "suzanne_bone.dae" //"suzanne.dae"
 
 /* keep track of window size for things like the viewport and the mouse
 cursor */
@@ -31,15 +32,44 @@ int main() {
 	glViewport(0, 0, g_gl_width, g_gl_height);
 
 	// load the mesh using assimp
-	GLuint cube_vao;
-	int cube_point_count;
-	assert(load_mesh(MESH_FILE, &cube_vao, &cube_point_count));
+	GLuint monkey_vao;
+	mat4 monkey_bone_offset_matrices[MAX_BONES];
+	int monkey_point_count = 0;
+	int monkey_bone_count = 0;
+	assert(load_mesh(MESH_FILE, &monkey_vao, &monkey_point_count, monkey_bone_offset_matrices, &monkey_bone_count));
+	printf("%s bone count: %i\n", MESH_FILE, monkey_bone_count);
+
+	// bone位置確認用のバッファ作成とボーン位置行列の表示
+	float bone_positions[3 * 256];
+	int c = 0;
+	for (int i = 0; i < monkey_bone_count; i++)
+	{
+		print(monkey_bone_offset_matrices[i]);
+
+		bone_positions[c++] = -monkey_bone_offset_matrices[i].m[12];
+		bone_positions[c++] = -monkey_bone_offset_matrices[i].m[13];
+		bone_positions[c++] = -monkey_bone_offset_matrices[i].m[14];
+	}
+	GLuint bones_vao;
+	glGenVertexArrays(1, &bones_vao);
+	glBindVertexArray(bones_vao);
+	GLuint bones_vbo;
+	glGenBuffers(1, &bones_vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, bones_vbo);
+	glBufferData(
+		GL_ARRAY_BUFFER,
+		3 * monkey_bone_count * sizeof(float),
+		bone_positions,
+		GL_STATIC_DRAW);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+	glEnableVertexAttribArray(0);
 
 	/* load shaders from files here */
 	GLuint shader_programme = create_programme_from_files(VERTEX_SHADER_FILE, FRAGMENT_SHADER_FILE);
+	GLuint bones_shader_programme = create_programme_from_files("bones_vs.glsl", "bones_fs.glsl");
 
 	// make view matrix
-	vec3 cam_pos = vec3(0.0f, -300.0f, 0.0f);
+	vec3 cam_pos = vec3(0.0f, 0.0f, 300.0f);
 	vec3 target_pos = vec3( 0.0f, 0.0f, 0.0f );
 	vec3 up_vec = vec3(0.0f, 1.0f, 0.0f);
 	mat4 viewMat = look_at(cam_pos, target_pos, up_vec);
@@ -61,9 +91,10 @@ int main() {
 	glUniformMatrix4fv(proj_mat_location, 1, GL_FALSE, projMat.m);
 
 	// 初期位置の決定とmodel行列のuniform locationの取得
-	mat4 model_matrix = translate(identity_mat4(), vec3(0.5f, 0.0f, 0.0f));
+	mat4 model_matrix = translate(identity_mat4(), vec3(0.0f, 0.0f, 0.0f));
 	int model_location = glGetUniformLocation(shader_programme, "model");
 	assert(model_location > -1);
+	glUniformMatrix4fv(model_location, 1, GL_FALSE, model_matrix.m);
 	
 	float cam_speed = 3.0f;
 	float cam_yaw = 0.0f;
@@ -72,6 +103,13 @@ int main() {
 	float model_speed = 1.0f;
 	float model_last_position = 0.0f;
 	double previous_seconds = glfwGetTime();
+
+	// ボーン位置を表示するためのシェーダのUniform変数に値をセット
+	glUseProgram(bones_shader_programme);
+	int bones_view_mat_location = glGetUniformLocation(bones_shader_programme, "view");
+	glUniformMatrix4fv(bones_view_mat_location, 1, GL_FALSE, viewMat.m);
+	int bones_proj_mat_location = glGetUniformLocation(bones_shader_programme, "proj");
+	glUniformMatrix4fv(bones_proj_mat_location, 1, GL_FALSE, projMat.m);
 
 	while (!glfwWindowShouldClose(g_window)) {
 		double current_seconds = glfwGetTime();
@@ -82,18 +120,27 @@ int main() {
 		/* wipe the drawing surface clear */
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		glViewport(0, 0, g_gl_width, g_gl_height);
-		glUseProgram(shader_programme);
 		
+		// draw mesh
 		// udpate model matrix
-		model_matrix.m[12] = elapsed_seconds * model_speed + model_last_position;
+		glUseProgram(shader_programme);
+		/*model_matrix.m[12] = elapsed_seconds * model_speed + model_last_position;
 		model_last_position = model_matrix.m[12];
 		if (fabs(model_last_position) > 1.0)
 			model_speed = -model_speed;
-		glUniformMatrix4fv(model_location, 1, GL_FALSE, model_matrix.m);
+		glUniformMatrix4fv(model_location, 1, GL_FALSE, model_matrix.m);*/
 
-		// draw mesh
-		glBindVertexArray(cube_vao);
-		glDrawArrays(GL_TRIANGLES, 0, cube_point_count);
+		glEnable(GL_DEPTH_TEST);
+		glBindVertexArray(monkey_vao);
+		glDrawArrays(GL_TRIANGLES, 0, monkey_point_count);
+
+		// ボーン位置を描画
+		glDisable(GL_DEPTH_TEST);
+		glEnable(GL_PROGRAM_POINT_SIZE);
+		glUseProgram(bones_shader_programme);
+		glBindVertexArray(bones_vao);
+		glDrawArrays(GL_POINTS, 0, monkey_bone_count);
+		glDisable(GL_PROGRAM_POINT_SIZE);
 
 		/* update other events like input handling */
 		glfwPollEvents();
