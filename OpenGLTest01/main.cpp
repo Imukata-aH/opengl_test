@@ -83,18 +83,32 @@ int main() {
 	mat4 pvMat = projMat * viewMat;
 
 	// set matrices to shader uniform variables
-	GLint view_mat_location = glGetUniformLocation(shader_programme, "view");
 	glUseProgram(shader_programme);
-	glUniformMatrix4fv(view_mat_location, 1, GL_FALSE, viewMat.m);
-	GLint proj_mat_location = glGetUniformLocation(shader_programme, "proj");
-	glUseProgram(shader_programme);
-	glUniformMatrix4fv(proj_mat_location, 1, GL_FALSE, projMat.m);
-
-	// 初期位置の決定とmodel行列のuniform locationの取得
-	mat4 model_matrix = translate(identity_mat4(), vec3(0.0f, 0.0f, 0.0f));
+	mat4 model_matrix = identity_mat4();
 	int model_location = glGetUniformLocation(shader_programme, "model");
-	assert(model_location > -1);
 	glUniformMatrix4fv(model_location, 1, GL_FALSE, model_matrix.m);
+	// view
+	GLint view_mat_location = glGetUniformLocation(shader_programme, "view");
+	glUniformMatrix4fv(view_mat_location, 1, GL_FALSE, viewMat.m);
+	// proj
+	GLint proj_mat_location = glGetUniformLocation(shader_programme, "proj");
+	glUniformMatrix4fv(proj_mat_location, 1, GL_FALSE, projMat.m);
+	// bone matrices　OpenGLの実装では、uniform変数の配列のlocation値は連続とは限らないので、それぞれのインデックスに対してlocationを探索する
+	int bone_matrices_locations[MAX_BONES];
+	char name[64];
+	for (int i = 0; i < MAX_BONES; i++)
+	{
+		sprintf(name, "bone_matrices[%i]", i);
+		bone_matrices_locations[i] = glGetUniformLocation(shader_programme, name);
+		glUniformMatrix4fv(bone_matrices_locations[i], 1, GL_FALSE, identity_mat4().m);	// 単位行列で初期化
+	}
+
+	// ボーン位置を表示するためのシェーダのUniform変数に値をセット
+	glUseProgram(bones_shader_programme);
+	int bones_view_mat_location = glGetUniformLocation(bones_shader_programme, "view");
+	glUniformMatrix4fv(bones_view_mat_location, 1, GL_FALSE, viewMat.m);
+	int bones_proj_mat_location = glGetUniformLocation(bones_shader_programme, "proj");
+	glUniformMatrix4fv(bones_proj_mat_location, 1, GL_FALSE, projMat.m);
 	
 	float cam_speed = 3.0f;
 	float cam_yaw = 0.0f;
@@ -104,12 +118,11 @@ int main() {
 	float model_last_position = 0.0f;
 	double previous_seconds = glfwGetTime();
 
-	// ボーン位置を表示するためのシェーダのUniform変数に値をセット
-	glUseProgram(bones_shader_programme);
-	int bones_view_mat_location = glGetUniformLocation(bones_shader_programme, "view");
-	glUniformMatrix4fv(bones_view_mat_location, 1, GL_FALSE, viewMat.m);
-	int bones_proj_mat_location = glGetUniformLocation(bones_shader_programme, "proj");
-	glUniformMatrix4fv(bones_proj_mat_location, 1, GL_FALSE, projMat.m);
+	//左のお耳をぐーるぐる
+	float bone_theta = 0.0f;
+	float bone_rot_speed = 50.0f;
+	mat4 left_ear_mat = identity_mat4();
+	int left_ear_bone_id = 2;	// 左耳のボーンidは2番目なので
 
 	while (!glfwWindowShouldClose(g_window)) {
 		double current_seconds = glfwGetTime();
@@ -185,6 +198,26 @@ int main() {
 			mat4 R = rotate_y_deg(identity_mat4(), -cam_yaw);
 			mat4 view_mat = R * T;
 			glUniformMatrix4fv(view_mat_location, 1, GL_FALSE, view_mat.m);
+		}
+		if (glfwGetKey(g_window, 'Z'))
+		{
+			bone_theta += bone_rot_speed * elapsed_seconds;
+			left_ear_mat = 
+				inverse(monkey_bone_offset_matrices[left_ear_bone_id]) *
+				rotate_z_deg(identity_mat4(), bone_theta) *
+				monkey_bone_offset_matrices[left_ear_bone_id];		//ボーン位置中心に回転するよう、ボーン位置のオフセットを使う
+			glUseProgram(shader_programme);
+			glUniformMatrix4fv(bone_matrices_locations[left_ear_bone_id], 1, GL_FALSE, left_ear_mat.m);
+		}
+		if (glfwGetKey(g_window, 'X'))
+		{
+			bone_theta -= bone_rot_speed * elapsed_seconds;
+			left_ear_mat =
+				inverse(monkey_bone_offset_matrices[left_ear_bone_id]) *
+				rotate_z_deg(identity_mat4(), bone_theta) *
+				monkey_bone_offset_matrices[left_ear_bone_id];		//ボーン位置中心に回転するよう、ボーン位置のオフセットを使う
+			glUseProgram(shader_programme);
+			glUniformMatrix4fv(bone_matrices_locations[left_ear_bone_id], 1, GL_FALSE, left_ear_mat.m);
 		}
 		if (GLFW_PRESS == glfwGetKey(g_window, GLFW_KEY_ESCAPE)) {
 			glfwSetWindowShouldClose(g_window, 1);

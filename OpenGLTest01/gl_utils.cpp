@@ -485,6 +485,7 @@ bool load_mesh(
 	GLfloat* points = NULL;
 	GLfloat* normals = NULL;
 	GLfloat* texcoords = NULL;
+	GLint* bone_ids = NULL;
 
 	if (mesh->HasPositions())
 	{
@@ -517,6 +518,8 @@ bool load_mesh(
 	if (mesh->HasBones())
 	{
 		*bone_count = (int)mesh->mNumBones;
+		bone_ids = (GLint*)malloc(*point_count * sizeof(GLint));
+
 		// bone names. max 256 bones, maax name length 64.
 		char bonenames[256][64];
 		for (int b_i = 0; b_i < *bone_count; b_i++)
@@ -525,6 +528,18 @@ bool load_mesh(
 			strcpy(bonenames[b_i], bone->mName.data);
 			printf("bonenames[%i] = %s\n", b_i, bonenames[b_i]);
 			bone_offset_mats[b_i] = convert_assimp_matrix(bone->mOffsetMatrix);
+
+			// get bone ids and weigthts
+			int num_weights = (int)bone->mNumWeights;
+			for (int w_i = 0; w_i < num_weights; w_i++)
+			{
+				aiVertexWeight weight = bone->mWeights[w_i];
+				int vertex_id = (int)weight.mVertexId;
+				if (weight.mWeight >= 0.3f)
+				{
+					bone_ids[vertex_id] = b_i;
+				}
+			}
 		}
 	}
 
@@ -578,6 +593,20 @@ bool load_mesh(
 	}
 	if (mesh->HasTangentsAndBitangents())
 	{
+	}
+	if (mesh->HasBones())
+	{
+		GLuint vbo;
+		glGenBuffers(1, &vbo);
+		glBindBuffer(GL_ARRAY_BUFFER, vbo);
+		glBufferData(
+			GL_ARRAY_BUFFER,
+			*point_count * sizeof(GLint),
+			bone_ids,
+			GL_STATIC_DRAW);
+		glVertexAttribIPointer(3, 1, GL_INT, 0, NULL);
+		glEnableVertexAttribArray(3);
+		free(bone_ids);
 	}
 
 	aiReleaseImport(scene);
