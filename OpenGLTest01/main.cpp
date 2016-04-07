@@ -9,8 +9,7 @@
 #define GL_LOG_FILE "gl.log"
 #define VERTEX_SHADER_FILE "test_vs.glsl"
 #define FRAGMENT_SHADER_FILE "test_fs.glsl"
-#define MAX_BONES 32
-#define MESH_FILE "suzanne_bone.dae" //"suzanne.dae"
+#define MESH_FILE "suzanne_skeleton.dae" //"suzanne_bone.dae" //"suzanne.dae"
 
 /* keep track of window size for things like the viewport and the mouse
 cursor */
@@ -34,9 +33,10 @@ int main() {
 	// load the mesh using assimp
 	GLuint monkey_vao;
 	mat4 monkey_bone_offset_matrices[MAX_BONES];
+	Skeleton_Node* monkey_skeleton;
 	int monkey_point_count = 0;
 	int monkey_bone_count = 0;
-	assert(load_mesh(MESH_FILE, &monkey_vao, &monkey_point_count, monkey_bone_offset_matrices, &monkey_bone_count));
+	assert(load_mesh(MESH_FILE, &monkey_vao, &monkey_point_count, monkey_bone_offset_matrices, &monkey_bone_count, &monkey_skeleton));
 	printf("%s bone count: %i\n", MESH_FILE, monkey_bone_count);
 
 	// bone位置確認用のバッファ作成とボーン位置行列の表示

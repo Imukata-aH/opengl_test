@@ -443,6 +443,71 @@ GLuint create_programme_from_files(const char* vs_filename, const char* fs_filen
 	return programme;
 }
 
+/*--------------------Skeleton Structure and its Loader---------------------------*/
+// シーングラフに含まれる全ノードを再帰的にたどる。ノード構造のうち、Armature(skeleton)のみ抽出するために、
+// ノード名とボーンの名前を照合して、合致するものを抜き出す。
+bool import_skeleton_node(
+	aiNode* assimp_node,
+	Skeleton_Node** skeleton_node,
+	int bone_count,
+	char bone_names[][64])
+{
+	Skeleton_Node* temp = (Skeleton_Node*)malloc(sizeof(Skeleton_Node));
+
+	// 要素の初期化
+	strcpy(temp->name, assimp_node->mName.C_Str());
+	printf("--node name = %s\n", temp->name);
+	temp->num_children = 0;
+	printf("node has %i children\n", (int)assimp_node->mNumChildren);
+	temp->bone_index = -1;
+	for (int i = 0; i < MAX_BONES; i++){
+		temp->children[i] = NULL;
+	}
+
+	// ボーンの名前とノード名の照合
+	bool has_bone = false;
+	for (int i = 0; i < bone_count; i++)
+	{
+		if (strcmp(bone_names[i], temp->name) == 0){
+			printf("node uses bone %i\n", i);
+			temp->bone_index = i;
+			has_bone = true;
+			break;
+		}
+	}
+	if (!has_bone){
+		printf("no bone found for node\n");
+	}
+
+	// 子のボーンを再帰的に探索して、有効なボーンがあるかを探す
+	bool has_useful_child = false;
+	for (int i = 0; i < (int)assimp_node->mNumChildren; i++)
+	{
+		if (import_skeleton_node(
+			assimp_node->mChildren[i],
+			&temp->children[temp->num_children],
+			bone_count,
+			bone_names
+			)){
+			has_useful_child = true;
+			temp->num_children++;
+		}
+		else{
+			printf("useless child culled\n");
+		}
+	}
+	if (has_useful_child || has_bone)
+	{
+		// ノードがボーンとして有効か、子に有効なボーンを持っていればスケルトンノードに追加
+		*skeleton_node = temp;
+		return true;
+	}
+
+	free(temp);
+	temp = NULL;
+	return false;
+}
+
 /*--------------------3D Object File Importer---------------------------*/
 mat4 convert_assimp_matrix(aiMatrix4x4 m)
 {
@@ -459,7 +524,8 @@ bool load_mesh(
 	GLuint* vao,
 	int* point_count,
 	mat4* bone_offset_mats,
-	int* bone_count)
+	int* bone_count,
+	Skeleton_Node** root_node)
 {
 	const aiScene* scene = aiImportFile(file_name, aiProcess_Triangulate);
 
@@ -520,7 +586,7 @@ bool load_mesh(
 		*bone_count = (int)mesh->mNumBones;
 		bone_ids = (GLint*)malloc(*point_count * sizeof(GLint));
 
-		// bone names. max 256 bones, maax name length 64.
+		// bone names. max 256 bones, max name length 64.
 		char bonenames[256][64];
 		for (int b_i = 0; b_i < *bone_count; b_i++)
 		{
@@ -540,6 +606,18 @@ bool load_mesh(
 					bone_ids[vertex_id] = b_i;
 				}
 			}
+		}
+
+		/* get the skeleton hierarchy*/
+
+		aiNode* assimp_node = scene->mRootNode;
+
+		if (!import_skeleton_node(
+			assimp_node,
+			root_node,
+			*bone_count,
+			bonenames)){
+			fprintf(stderr, "ERROR: could not iport node tree from mesh\n");
 		}
 	}
 
