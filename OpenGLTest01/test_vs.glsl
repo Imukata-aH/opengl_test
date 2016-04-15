@@ -5,7 +5,7 @@ layout(location = 1) in vec3 vertex_colour;
 layout(location = 3) in int bone_id;
 
 uniform mat4 view, proj, model;
-uniform mat4 bone_matrices[32];
+uniform mat4 bone_matrices[64];
 
 out vec3 colour;
 

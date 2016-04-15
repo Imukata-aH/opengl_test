@@ -17,6 +17,41 @@ int g_gl_width = 640;
 int g_gl_height = 480;
 GLFWwindow* g_window = NULL;
 
+mat4 g_local_anim[MAX_BONES];
+
+// スケルトン構造を再帰的に辿って、ボーンのアニメーション行列の配列を生成する
+void skeleton_animate(
+	Skeleton_Node* node,
+	mat4 parent_mat,
+	mat4* bone_offset_mats,
+	mat4* bone_animation_mats){
+
+	assert(node);
+
+	mat4 our_mat = parent_mat;			// ボーンの最終的なトランスフォーム行列
+	mat4 local_anim = identity_mat4();	// このフレームにおけるこのボーンに対するアニメーション行列
+
+	int bone_i = node->bone_index;
+	if (bone_i > -1)
+	{
+		mat4 bone_offset = bone_offset_mats[bone_i];
+		mat4 inv_bone_offset = inverse(bone_offset);
+		local_anim = g_local_anim[bone_i];
+
+		our_mat = parent_mat * inv_bone_offset * local_anim * bone_offset;
+		bone_animation_mats[bone_i] = our_mat;
+	}
+	for (int i = 0; i < node->num_children; i++)
+	{
+		skeleton_animate(
+			node->children[i],
+			our_mat,
+			bone_offset_mats,
+			bone_animation_mats
+			);
+	}
+}
+
 int main() {
 	assert(restart_gl_log());
 	assert(start_gl());
@@ -33,11 +68,19 @@ int main() {
 	// load the mesh using assimp
 	GLuint monkey_vao;
 	mat4 monkey_bone_offset_matrices[MAX_BONES];
-	Skeleton_Node* monkey_skeleton;
+	Skeleton_Node* monkey_skeleton_root;
 	int monkey_point_count = 0;
 	int monkey_bone_count = 0;
-	assert(load_mesh(MESH_FILE, &monkey_vao, &monkey_point_count, monkey_bone_offset_matrices, &monkey_bone_count, &monkey_skeleton));
+	assert(load_mesh(MESH_FILE, &monkey_vao, &monkey_point_count, monkey_bone_offset_matrices, &monkey_bone_count, &monkey_skeleton_root));
 	printf("%s bone count: %i\n", MESH_FILE, monkey_bone_count);
+
+	mat4 monkey_bone_animation_mats[MAX_BONES];
+	for (int i = 0; i < MAX_BONES; i++) {
+		monkey_bone_animation_mats[i] = identity_mat4();
+		monkey_bone_offset_matrices[i] = identity_mat4();
+		monkey_bone_animation_mats[i] = identity_mat4();
+		g_local_anim[i] = identity_mat4();
+	}
 
 	// bone位置確認用のバッファ作成とボーン位置行列の表示
 	float bone_positions[3 * 256];
@@ -118,11 +161,10 @@ int main() {
 	float model_last_position = 0.0f;
 	double previous_seconds = glfwGetTime();
 
-	//左のお耳をぐーるぐる
+	// スケルトンアニメーション用パラメータ
 	float bone_theta = 0.0f;
+	float bone_y = 0.0f;
 	float bone_rot_speed = 50.0f;
-	mat4 left_ear_mat = identity_mat4();
-	int left_ear_bone_id = 2;	// 左耳のボーンidは2番目なので
 
 	while (!glfwWindowShouldClose(g_window)) {
 		double current_seconds = glfwGetTime();
@@ -199,26 +241,44 @@ int main() {
 			mat4 view_mat = R * T;
 			glUniformMatrix4fv(view_mat_location, 1, GL_FALSE, view_mat.m);
 		}
-		if (glfwGetKey(g_window, 'Z'))
-		{
+		bool monkey_moved = false;
+		if (glfwGetKey(g_window, 'Z')){
 			bone_theta += bone_rot_speed * elapsed_seconds;
-			left_ear_mat = 
-				inverse(monkey_bone_offset_matrices[left_ear_bone_id]) *
-				rotate_z_deg(identity_mat4(), bone_theta) *
-				monkey_bone_offset_matrices[left_ear_bone_id];		//ボーン位置中心に回転するよう、ボーン位置のオフセットを使う
-			glUseProgram(shader_programme);
-			glUniformMatrix4fv(bone_matrices_locations[left_ear_bone_id], 1, GL_FALSE, left_ear_mat.m);
+			g_local_anim[1] = rotate_z_deg(identity_mat4(), bone_theta);
+			g_local_anim[2] = rotate_z_deg(identity_mat4(), -bone_theta);
+			monkey_moved = true;
 		}
-		if (glfwGetKey(g_window, 'X'))
-		{
+		if (glfwGetKey(g_window, 'X')){
 			bone_theta -= bone_rot_speed * elapsed_seconds;
-			left_ear_mat =
-				inverse(monkey_bone_offset_matrices[left_ear_bone_id]) *
-				rotate_z_deg(identity_mat4(), bone_theta) *
-				monkey_bone_offset_matrices[left_ear_bone_id];		//ボーン位置中心に回転するよう、ボーン位置のオフセットを使う
-			glUseProgram(shader_programme);
-			glUniformMatrix4fv(bone_matrices_locations[left_ear_bone_id], 1, GL_FALSE, left_ear_mat.m);
+			g_local_anim[1] = rotate_z_deg(identity_mat4(), bone_theta);
+			g_local_anim[2] = rotate_z_deg(identity_mat4(), -bone_theta);
+			monkey_moved = true;
 		}
+		if (glfwGetKey(g_window, 'C')){
+			bone_y += 0.5f * elapsed_seconds;
+			g_local_anim[0] = translate(identity_mat4(), vec3(0.0f, bone_y, 0.0f));
+			monkey_moved = true;
+		}
+		if (glfwGetKey(g_window, 'V')){
+			bone_y -= 0.5f * elapsed_seconds;
+			g_local_anim[0] = translate(identity_mat4(), vec3(0.0f, bone_y, 0.0f));
+			monkey_moved = true;
+		}
+		if (monkey_moved)
+		{
+			skeleton_animate(
+				monkey_skeleton_root,
+				identity_mat4(),
+				monkey_bone_offset_matrices,
+				monkey_bone_animation_mats);
+			glUseProgram(shader_programme);
+			glUniformMatrix4fv(
+				bone_matrices_locations[0],
+				monkey_bone_count,
+				GL_FALSE,
+				monkey_bone_animation_mats[0].m);
+		}
+
 		if (GLFW_PRESS == glfwGetKey(g_window, GLFW_KEY_ESCAPE)) {
 			glfwSetWindowShouldClose(g_window, 1);
 		}
